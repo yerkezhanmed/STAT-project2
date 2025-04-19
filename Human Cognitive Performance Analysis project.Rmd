@@ -1,0 +1,264 @@
+---
+title: "From Messy Minds to Meaningful Insights: Wrangling Human Cognitive Data in R"
+author: "Yerkezhan Medetbekova"
+date: "2025-04-11"
+output:
+  html_document:
+    self_contained: true
+    toc: true
+    theme: flatly
+---
+
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+# 🧠 Introduction
+
+
+Have you ever wondered how stress, sleep, screen time, and lifestyle habits influence our memory and cognitive skills? In today’s data-driven world, we can explore those questions through the power of data wrangling. This tutorial is designed for beginner R users who are comfortable with the basics of R but new to using the tidyverse to clean, manipulate, and visualize messy datasets
+
+
+📊 About the Dataset
+The dataset used in this tutorial is titled Human Cognitive Performance Analysis, and it is publicly available on Kaggle. It was published by user **samxsam** in 2023(It was updated on 04/02/2025) and includes simulated data from 80,000 individuals aged 18–59.
+
+The dataset records 13 variables, including:
+
+- **Demographics**: `Age`, `Gender`  
+- **Health habits**: `Sleep_Duration`, `Diet_Type`, `Caffeine_Intake`, `Exercise_Frequency`  
+- **Behavioral factors**: `Stress_Level`, `Daily_Screen_Time`  
+- **Cognitive metrics**: `Reaction_Time`, `Memory_Test_Score`, `Cognitive_Score`, `AI_Predicted_Score`
+
+This simulated dataset provides a realistic scenario for exploring how everyday habits may relate to cognitive performance. While it does not represent real medical data, it offers a valuable opportunity to practice data wrangling techniques with real-world context.
+
+Dataset Source: [Human Cognitive Performance Analysis](https://www.kaggle.com/datasets/samxsam/human-cognitive-performance-analysis)🗂️
+
+
+# 📂 Loading and Exploring the Data
+
+To begin, we load the dataset using `read_csv()` and take a first look at the structure using `glimpse()`. This helps us understand the number of rows, variables, and data types we’re working with.
+
+
+```{r}
+#Loading dataset
+cog_data <- read_csv("human_cognitive_performance.csv")
+glimpse(cog_data)
+```
+
+# 🧹 Step 1: Cleaning the Data
+
+We’ll start cleaning our dataset by renaming the columns to more consistent and readable names using `rename()`. Then, we’ll use `filter()` to remove rows with missing values in key variables. This ensures our data is tidy and ready for analysis.
+
+
+```{r}
+# Rename columns manually for consistency
+cog_data <- cog_data %>%
+  rename(
+    user_id = User_ID,
+    age = Age,
+    gender = Gender,
+    sleep = Sleep_Duration,
+    stress = Stress_Level,
+    diet_type = Diet_Type,
+    screen_time = Daily_Screen_Time,
+    exercise_frequency = Exercise_Frequency,
+    caffeine_intake = Caffeine_Intake,
+    reaction_time = Reaction_Time,
+    memory = Memory_Test_Score,
+    cognitive = Cognitive_Score,
+    ai_predicted_score = AI_Predicted_Score
+  )
+
+# Remove rows with missing key values
+cog_clean <- cog_data %>%
+  filter(
+    !is.na(memory),
+    !is.na(cognitive),
+    !is.na(gender),
+    !is.na(stress)
+  )
+
+# Let's take a look  at cleaned data
+glimpse(cog_clean)
+
+
+```
+This summary tells us that our dataset includes 80,000 observations across 13 variables. It contains both numeric and categorical data, such as:
+
+- **Age** ranges from 18 to 59, with an average of about 38.5 years.
+- **Sleep duration** varies from 4 to 10 hours, averaging around 7.
+- **Stress level** ranges from 1 to 10, with a median of 5.
+- **Cognitive and memory scores** range from 0 to 100, with mean memory around 69.5 and cognitive around 58.2.
+
+This overview helps us understand the scale and type of data we’re working with before moving on to wrangling and visualization.
+
+
+# 🔄 Step 2: Creating New Variables and Summarizing
+In this step, we’ll use `mutate()` to create new variables that make our data easier to analyze. Specifically, we’ll group stress levels into categories and create age groups. Then, we’ll use `group_by()` and `summarise()` to explore average memory and cognitive scores across these categories.
+
+
+```{r}
+# Creating a new variable for stress categories
+cog_clean <- cog_clean %>%
+  mutate(stress_cat = case_when(
+    stress <= 3 ~ "Low",
+    stress <= 7 ~ "Medium",
+    TRUE ~ "High"
+  ))
+
+# Creating age group categories
+cog_clean <- cog_clean %>%
+  mutate(age_group = case_when(
+    age < 25 ~ "18–24",
+    age < 35 ~ "25–34",
+    age < 45 ~ "35–44",
+    age < 55 ~ "45–54",
+    TRUE ~ "55–59"
+  ))
+
+# Summarize average memory and cognitive score by stress category
+stress_summary <- cog_clean %>%
+  group_by(stress_cat) %>%
+  summarise(
+    avg_memory = mean(memory),
+    avg_cognitive = mean(cognitive),
+    .groups = "drop"
+  )
+
+stress_summary
+
+```
+This summary table shows the average memory and cognitive scores across different stress categories.
+
+- Individuals with **low stress** have the **highest average cognitive score** (~64.6), while those with **high stress** have the **lowest** (~51.8).
+- Interestingly, **memory scores remain fairly consistent** across all groups, hovering around 69.4–69.6.
+
+These results suggest that while stress might not heavily impact memory, it appears to be linked to a noticeable drop in overall cognitive performance.
+
+
+
+
+# 📊 Step 3: Visualizing the Data
+
+Now that we’ve wrangled and summarized our dataset, let’s visualize some of the patterns to better understand how variables like stress and sleep relate to cognitive performance.
+
+We’ll use `ggplot2` to create two informative graphics:
+1. A bar chart showing average memory scores across stress categories
+2. A scatter plot showing the relationship between sleep duration and cognitive scores
+
+
+First, we’ll plot the average memory score for each stress category. This helps us visually compare how memory performance changes across different stress levels.
+
+
+```{r}
+ggplot(stress_summary, aes(x = stress_cat, y = avg_memory, fill = stress_cat)) +
+  geom_col() +
+  labs( #Adding title and x, y 
+    title = "Average Memory Score by Stress Category",
+    x = "Stress Category",
+    y = "Average Memory Score"
+  ) +
+  theme_minimal()
+```
+
+This bar chart shows the average memory scores across different stress levels. Interestingly, the scores are **very similar**, regardless of stress category — all hovering around 69.4 to 69.6. This suggests that **stress may not have a strong effect on memory performance** in this dataset. However, we’ll need to look at other variables (like cognitive score) to see if stress influences different aspects of mental performance.
+
+
+
+
+
+Next, let’s try a scatter plot! We’ll use it to see if there’s any relationship between how much people sleep and how well they perform on cognitive tests. We’ll use two variables: **hours of sleep** and **cognitive score**, and plot the correlation between them.
+ 
+
+
+```{r}
+ggplot(cog_clean, aes(x = sleep, y = cognitive)) +
+  geom_point(alpha = 0.3, color = "steelblue") + #adding color 
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(
+    title = "Cognitive Score vs. Sleep Duration",
+    x = "Hours of Sleep",
+    y = "Cognitive Score"
+  ) +
+  theme_minimal() #using theme minimal
+```
+This scatter plot shows the relationship between sleep duration and cognitive score. Each point represents an individual’s cognitive score based on how many hours of sleep they got.
+
+While the data points are spread out, the red trend line (generated with `geom_smooth(method = "lm")`) shows a **slight positive correlation** — suggesting that people who sleep more tend to have slightly higher cognitive scores.
+
+
+### 🧠 Let’s Test What You’ve Learned
+
+Now let’s do a quick check on what we’ve just covered!  
+Choose the most appropriate answer for each question below.  
+You’ll find the correct✅ answers at the end of this section.
+
+
+📍Question 1
+What function did we use to group our data by stress category?
+
+A) mutate()
+
+B) group_by()
+
+C) filter()
+
+D) summarise()
+
+
+🧷 Question 2
+Which new variable did we create to simplify stress level analysis?
+
+A) cognitive_cat
+
+B) stress_type
+
+C) stress_cat
+
+D) stress_grouped
+
+
+📈 Question 3
+Which plot type did we use to show the relationship between sleep and cognitive score?
+
+A) Bar plot
+
+B) Line chart
+
+C) Scatter plot
+
+D) Box plot
+
+
+
+# 📌Conclusion
+
+In this tutorial, we explored how to clean and wrangle a real-world dataset on human cognitive performance using the dplyr package in R. Through filtering, mutating, summarizing, and visualizing the data, we uncovered some interesting patterns.
+
+Key takeaway:
+
+Stress levels appeared to have little effect on memory, but higher stress was linked to lower cognitive scores.
+
+Sleep duration showed a slight positive relationship with cognitive performance, suggesting that more sleep may support better mental function.
+
+These results are valuable because they highlight how simple lifestyle factors — like stress and sleep — could influence cognitive abilities.
+This project demonstrates the power of data wrangling to turn messy information into clear insights. Whether you’re preparing data for analysis or creating visualizations to share findings, tidy data and thoughtful exploration are key.
+
+
+Thank you so much for going through my tutorial. I hope it was helpful !
+### Answer 🔑 
+Q1 **B**) `group_by()`
+Q2 **C**) `stress_cat`
+Q3 **C**) Scatter plot
+
+
+
+
+Sources: 
+- [Human Cognitive Performance Analysis](https://www.kaggle.com/datasets/samxsam/human-cognitive-performance-analysis)
+- [`case_when()` – dplyr documentation](https://dplyr.tidyverse.org/reference/case_when.html)
+- [ggplot2 Colour Reference Guide](https://sape.inf.usi.ch/quick-reference/ggplot2/colour)
+
+
+
